@@ -3,6 +3,7 @@ import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/http/response
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -152,7 +153,7 @@ pub fn response_from_http(response) {
           refresh_token,
         ))
       })
-    _ -> todo
+    _ -> panic as { "unexpected response " <> int.to_string(response.status) }
   }
 }
 
