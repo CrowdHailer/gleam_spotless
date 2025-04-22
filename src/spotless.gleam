@@ -63,3 +63,18 @@ pub fn dnsimple(port) {
   use response <- t.do(authenticate("dnsimple", [], "", port))
   t.done(response.access_token)
 }
+
+pub fn github(port, scopes) {
+  use response <- t.do(authenticate("github", scopes, "", port))
+  t.done(response.access_token)
+}
+
+pub fn netlify(port, scopes) {
+  use response <- t.do(authenticate("netlify", scopes, "", port))
+  t.done(response.access_token)
+}
+
+pub fn vimeo(port, scopes) {
+  use response <- t.do(authenticate("vimeo", scopes, "", port))
+  t.done(response.access_token)
+}

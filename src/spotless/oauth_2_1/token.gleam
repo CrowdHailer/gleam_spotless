@@ -72,6 +72,7 @@ pub fn params_to_http(endpoint, query) {
       "content-type",
       "application/x-www-form-urlencoded",
     )
+    |> request.prepend_header("accept", "application/json")
     |> request.set_body(bit_array.from_string(uri.query_to_string(query)))
   case port {
     Some(port) -> request.set_port(r, port)
