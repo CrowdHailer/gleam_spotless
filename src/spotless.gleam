@@ -59,6 +59,7 @@ fn token_response_from_http(response) {
   |> result.map_error(fn(error) { snag.new(string.inspect(error)) })
 }
 
+// Currently DNSimple don't use scopes
 pub fn dnsimple(port) {
   use response <- t.do(authenticate("dnsimple", [], "", port))
   t.done(response.access_token)
@@ -69,8 +70,18 @@ pub fn github(port, scopes) {
   t.done(response.access_token)
 }
 
+pub fn linkedin(port, scopes) {
+  use response <- t.do(authenticate("linkedin", scopes, "", port))
+  t.done(response.access_token)
+}
+
 pub fn netlify(port, scopes) {
   use response <- t.do(authenticate("netlify", scopes, "", port))
+  t.done(response.access_token)
+}
+
+pub fn twitter(port, scopes) {
+  use response <- t.do(authenticate("twitter", scopes, "", port))
   t.done(response.access_token)
 }
 

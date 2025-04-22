@@ -76,6 +76,21 @@ pub fn request_to_url(endpoint, request) {
   |> uri.to_string
 }
 
+pub fn request_to_http(endpoint, request) {
+  let #(oa.Origin(scheme, host, port), path) = endpoint
+  let request =
+    request.new()
+    |> request.set_scheme(scheme)
+    |> request.set_host(host)
+    |> request.set_path(path)
+    |> request.set_query(request_to_params(request))
+    |> request.set_body(<<>>)
+  case port {
+    Some(port) -> request.set_port(request, port)
+    None -> request
+  }
+}
+
 pub fn request_from_http(request) {
   case request.get_query(request) {
     Ok(params) -> request_from_params(params)
