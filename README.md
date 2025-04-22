@@ -51,9 +51,10 @@ Spotless supports a growing list of services. Initial integrations include:
 
 - DNSimple
 - Github
+- Linkedin
 - Netlify
-- Vimeo
 - Twitter
+- Vimeo
 
 Want a new integration? Open an issue.
 

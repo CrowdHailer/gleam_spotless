@@ -29,14 +29,14 @@ pub type CodeChallengeMethod {
   S256
 }
 
-fn code_challenge_method_to_string(method) {
+pub fn code_challenge_method_to_string(method) {
   case method {
     Plain -> "plain"
     S256 -> "S256"
   }
 }
 
-fn code_challenge_method_from_string(raw) -> Result(CodeChallengeMethod, _) {
+pub fn code_challenge_method_from_string(raw) -> Result(CodeChallengeMethod, _) {
   case raw {
     "plain" -> Ok(Plain)
     "S256" -> Ok(S256)

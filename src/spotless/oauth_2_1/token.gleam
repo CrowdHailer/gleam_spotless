@@ -82,9 +82,13 @@ pub fn params_to_http(endpoint, query) {
 
 pub fn request_from_http(request) {
   let request.Request(body:, ..) = request
-  case uri.parse_query(body) {
-    Ok(params) -> request_from_params(params)
-    Error(_) -> Error(#(InvalidRequest, "missing params"))
+  case bit_array.to_string(body) {
+    Ok(body) ->
+      case uri.parse_query(body) {
+        Ok(params) -> request_from_params(params)
+        Error(_) -> Error(#(InvalidRequest, "missing params"))
+      }
+    Error(_) -> Error(#(InvalidRequest, "not utf8"))
   }
 }
 
