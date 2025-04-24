@@ -70,6 +70,11 @@ pub fn github(port, scopes) {
   t.done(response.access_token)
 }
 
+pub fn google(port, scopes) {
+  use response <- t.do(authenticate("google", scopes, "", port))
+  t.done(response.access_token)
+}
+
 pub fn linkedin(port, scopes) {
   use response <- t.do(authenticate("linkedin", scopes, "", port))
   t.done(response.access_token)

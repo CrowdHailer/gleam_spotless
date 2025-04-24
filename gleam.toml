@@ -1,5 +1,5 @@
 name = "spotless"
-version = "0.2.0"
+version = "1.0.0"
 target = "javascript"
 description = "Instant OAuth integration for personal projects."
 licences = ["Apache-2.0"]

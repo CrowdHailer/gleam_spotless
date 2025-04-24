@@ -100,12 +100,13 @@ pub fn request_from_params(params) -> Result(Request, _) {
     AuthorizationCode -> {
       use #(client_id, params) <- try(key_pop(params, "client_id"))
       use #(code, params) <- try(key_pop(params, "code"))
-      use #(code_verifier, params) <- try(key_pop(params, "code_verifier"))
-      use Nil <- try(case params {
-        [] -> Ok(Nil)
-        _ ->
-          Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
-      })
+      use #(code_verifier, _params) <- try(key_pop(params, "code_verifier"))
+      // The client MUST ignore unrecognized response parameters
+      // use Nil <- try(case params {
+      //   [] -> Ok(Nil)
+      //   _ ->
+      //     Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
+      // })
       Ok(Request(AuthorizationCode, client_id, code, code_verifier))
     }
     _ -> Error(#(UnsupportedGrantType, "grant_type must be authorization_code"))

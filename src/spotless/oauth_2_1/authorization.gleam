@@ -113,11 +113,12 @@ pub fn request_from_params(params) -> Result(Request, _) {
     Ok(#(scope, params)) -> #(string.split(scope, " "), params)
     Error(_) -> #([], params)
   }
-  use #(state, params) <- try(key_pop(params, "state"))
-  use Nil <- try(case params {
-    [] -> Ok(Nil)
-    _ -> Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
-  })
+  use #(state, _params) <- try(key_pop(params, "state"))
+  // The client MUST ignore unrecognized response parameters
+  // use Nil <- try(case params {
+  //   [] -> Ok(Nil)
+  //   _ -> Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
+  // })
   Ok(Request(client_id, code_challenge, method, redirect_uri, scope, state))
 }
 
@@ -144,13 +145,14 @@ pub fn response_to_url(endpoint, response) {
   |> uri.to_string
 }
 
+// The client MUST ignore unrecognized response parameters
 pub fn response_from_params(params) {
   use #(code, params) <- try(key_pop(params, "code"))
-  use #(state, params) <- try(key_pop(params, "state"))
-  use Nil <- try(case params {
-    [] -> Ok(Nil)
-    _ -> Error(#(InvalidRequest, "extra params"))
-  })
+  use #(state, _params) <- try(key_pop(params, "state"))
+  // use Nil <- try(case params {
+  //   [] -> Ok(Nil)
+  //   _ -> Error(#(InvalidRequest, "extra params"))
+  // })
   Ok(Response(code, state))
 }
 
