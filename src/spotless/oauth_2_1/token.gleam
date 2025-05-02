@@ -8,7 +8,6 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
-import gleam/string
 import gleam/uri
 import spotless/oauth_2_1 as oa
 
