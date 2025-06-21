@@ -91,6 +91,7 @@ pub fn request_to_http(endpoint, request) {
   }
 }
 
+// Used by an OAuth server to turn an incoming HTTP request into a `AuthorizationRequest`.
 pub fn request_from_http(request) {
   case request.get_query(request) {
     Ok(params) -> request_from_params(params)
@@ -147,13 +148,24 @@ pub fn response_to_url(endpoint, response) {
 
 // The client MUST ignore unrecognized response parameters
 pub fn response_from_params(params) {
-  use #(code, params) <- try(key_pop(params, "code"))
-  use #(state, _params) <- try(key_pop(params, "state"))
-  // use Nil <- try(case params {
-  //   [] -> Ok(Nil)
-  //   _ -> Error(#(InvalidRequest, "extra params"))
-  // })
-  Ok(Response(code, state))
+  case key_pop(params, "error") {
+    Ok(#(error, params)) -> {
+      let description =
+        list.key_find(params, "error_description")
+        |> result.unwrap(error)
+      // list.key_pop(params, "error_uri") |> option.from_result
+      Error(#(AccessDenied, description))
+    }
+    Error(_) -> {
+      use #(code, params) <- try(key_pop(params, "code"))
+      use #(state, _params) <- try(key_pop(params, "state"))
+      // use Nil <- try(case params {
+      //   [] -> Ok(Nil)
+      //   _ -> Error(#(InvalidRequest, "extra params"))
+      // })
+      Ok(Response(code, state))
+    }
+  }
 }
 
 pub fn response_from_uri(uri) {
@@ -164,6 +176,7 @@ pub fn response_from_uri(uri) {
   }
 }
 
+// Used by a client to handle the redirect from an authorization server.
 pub fn response_from_http(request) {
   case request.get_query(request) {
     Ok(params) -> response_from_params(params)
