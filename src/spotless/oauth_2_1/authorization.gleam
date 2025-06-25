@@ -5,7 +5,7 @@ import gleam/option.{None, Some}
 import gleam/result.{try}
 import gleam/string
 import gleam/uri.{Uri}
-import spotless/oauth_2_1 as oa
+import spotless/origin.{Origin}
 import spotless/proof_key_for_code_exchange as pkce
 
 pub type Request {
@@ -49,7 +49,7 @@ pub fn request_to_params(request) {
 }
 
 pub fn request_to_url(endpoint, request) {
-  let #(oa.Origin(scheme, host, port), path) = endpoint
+  let #(Origin(scheme, host, port), path) = endpoint
   let scheme = http.scheme_to_string(scheme)
   let query = request_to_params(request)
   let query = Some(uri.query_to_string(query))
@@ -58,7 +58,7 @@ pub fn request_to_url(endpoint, request) {
 }
 
 pub fn request_to_http(endpoint, request) {
-  let #(oa.Origin(scheme, host, port), path) = endpoint
+  let #(Origin(scheme, host, port), path) = endpoint
   let request =
     request.new()
     |> request.set_scheme(scheme)
@@ -125,7 +125,7 @@ pub fn response_to_params(response) {
 }
 
 pub fn response_to_url(endpoint, response) {
-  let #(oa.Origin(scheme, host, port), path) = endpoint
+  let #(Origin(scheme, host, port), path) = endpoint
   let scheme = http.scheme_to_string(scheme)
   let query = response_to_params(response)
   let query = Some(uri.query_to_string(query))

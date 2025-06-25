@@ -8,7 +8,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import gleam/uri
-import spotless/oauth_2_1 as oa
+import spotless/origin.{Origin}
 
 pub type Request {
   Request(
@@ -59,7 +59,7 @@ pub fn request_to_http(endpoint, request) {
 }
 
 pub fn params_to_http(endpoint, query) {
-  let #(oa.Origin(scheme, host, port), path) = endpoint
+  let #(Origin(scheme, host, port), path) = endpoint
   let r =
     request.new()
     |> request.set_method(http.Post)

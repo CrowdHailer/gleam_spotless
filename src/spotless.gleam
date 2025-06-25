@@ -1,69 +1,25 @@
 import gleam/http
 import gleam/int
 import gleam/option.{None}
-import gleam/result
-import gleam/string
 import midas/task as t
-import snag
 import spotless/oauth_2_1 as oa
-import spotless/oauth_2_1/authorization
-import spotless/oauth_2_1/token
+import spotless/origin.{Origin}
 import spotless/proof_key_for_code_exchange as pkce
 
-const origin = oa.Origin(http.Https, "spotless.run", None)
-
 pub fn authenticate(service, scope, state, port, code_challenge_method) {
+  let origin = Origin(http.Https, "spotless.run", None)
   let client_id = "http://localhost:" <> int.to_string(port)
   let redirect_uri = client_id <> "/"
-  use code_verifier <- t.do(pkce.create_code_verifier())
-  use code_challenge <- t.do(pkce.create_code_challenge(
-    code_verifier,
-    code_challenge_method,
-  ))
-  let request =
-    authorization.Request(
-      client_id:,
-      redirect_uri:,
-      code_challenge:,
-      code_challenge_method:,
-      scope:,
-      state:,
+
+  let server =
+    oa.AuthorizationServer(
+      issuer: "https://spotless.run",
+      authorization_endpoint: #(origin, "/authorize/" <> service),
+      token_endpoint: #(origin, "/token"),
     )
-  let endpoint = #(origin, "/authorize/" <> service)
-  let url = authorization.request_to_url(endpoint, request)
-  use redirect <- t.do(t.follow(url))
-  use response <- t.try(authorization_response_from_uri(redirect))
+  let app = oa.App(oa.Public, client_id, redirect_uri)
 
-  let request =
-    token.Request(
-      grant_type: token.AuthorizationCode,
-      client_id:,
-      code: response.code,
-      code_verifier:,
-    )
-
-  use response <- t.do(
-    t.fetch(token.request_to_http(#(origin, "/token"), request)),
-  )
-  use response <- t.try(token_response_from_http(response))
-  case response {
-    Ok(response) -> t.done(response)
-    Error(token.ErrorResponse(error:, ..)) ->
-      t.abort(snag.new(error) |> snag.layer("failed to fetch token"))
-  }
-}
-
-fn authorization_response_from_uri(redirect) {
-  authorization.response_from_uri(redirect)
-  |> result.map_error(fn(error) {
-    let #(_reason, description) = error
-    snag.new(description)
-  })
-}
-
-fn token_response_from_http(response) {
-  token.response_from_http(response)
-  |> result.map_error(fn(error) { snag.new(string.inspect(error)) })
+  oa.authorize(server, app, scope, state, code_challenge_method)
 }
 
 // Currently DNSimple don't use scopes
