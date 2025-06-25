@@ -1,6 +1,6 @@
 import gleam/http
 import gleam/int
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import midas/task as t
 import spotless/oauth_2_1 as oa
 import spotless/origin.{Origin}
@@ -16,10 +16,33 @@ pub fn authenticate(service, scope, state, port, code_challenge_method) {
       issuer: "https://spotless.run",
       authorization_endpoint: #(origin, "/authorize/" <> service),
       token_endpoint: #(origin, "/token"),
+      pushed_authorization_request_endpoint: None,
     )
   let app = oa.App(oa.Public, client_id, redirect_uri)
 
-  oa.authorize(server, app, scope, state, code_challenge_method)
+  oa.authorize(server, app, None, scope, state, code_challenge_method)
+}
+
+pub fn bsky(port, scope, state, keypair) {
+  // If state is empty string that value is not returned from oauth server
+  let origin = Origin(http.Https, "bsky.social", None)
+  // No port on client id
+  let client_id = "http://localhost"
+  let redirect_uri = "http://127.0.0.1:" <> int.to_string(port) <> "/"
+
+  let server =
+    oa.AuthorizationServer(
+      issuer: "https://bsky.social",
+      authorization_endpoint: #(origin, "/oauth/authorize"),
+      token_endpoint: #(origin, "/oauth/token"),
+      pushed_authorization_request_endpoint: Some(#(
+        #(origin, "/oauth/par"),
+        True,
+      )),
+    )
+  let app = oa.App(oa.Public, client_id, redirect_uri)
+
+  oa.authorize(server, app, Some(keypair), scope, state, pkce.S256)
 }
 
 // Currently DNSimple don't use scopes

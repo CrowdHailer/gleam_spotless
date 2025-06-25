@@ -17,7 +17,8 @@ pub type Request {
     // client_secret: String,
     code: String,
     code_verifier: String,
-    // redirect_uri: String,
+    // needed for atproto
+    redirect_uri: String,
   )
 }
 
@@ -42,14 +43,15 @@ fn grant_type_from_string(grant_type) {
 }
 
 fn request_to_params(request) {
-  let Request(grant_type, client_id, code, code_verifier) = request
+  let Request(grant_type, client_id, code, code_verifier, redirect_uri) =
+    request
   [
     #("grant_type", grant_type_to_string(grant_type)),
     #("client_id", client_id),
     // #("client_secret", client_secret),
     #("code", code),
     #("code_verifier", code_verifier),
-    // #("redirect_uri", redirect_uri),
+    #("redirect_uri", redirect_uri),
   ]
 }
 
@@ -78,19 +80,19 @@ pub fn params_to_http(endpoint, query) {
   }
 }
 
-pub fn request_from_http(request) {
+pub fn request_from_http(request, redirect_uri) {
   let request.Request(body:, ..) = request
   case bit_array.to_string(body) {
     Ok(body) ->
       case uri.parse_query(body) {
-        Ok(params) -> request_from_params(params)
+        Ok(params) -> request_from_params(params, redirect_uri)
         Error(_) -> Error(#(InvalidRequest, "missing params"))
       }
     Error(_) -> Error(#(InvalidRequest, "not utf8"))
   }
 }
 
-pub fn request_from_params(params) -> Result(Request, _) {
+pub fn request_from_params(params, redirect_uri) -> Result(Request, _) {
   use #(grant_type, params) <- try(key_pop(params, "grant_type"))
 
   use type_ <- try(grant_type_from_string(grant_type))
@@ -105,7 +107,13 @@ pub fn request_from_params(params) -> Result(Request, _) {
       //   _ ->
       //     Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
       // })
-      Ok(Request(AuthorizationCode, client_id, code, code_verifier))
+      Ok(Request(
+        AuthorizationCode,
+        client_id,
+        code,
+        code_verifier,
+        redirect_uri,
+      ))
     }
     _ -> Error(#(UnsupportedGrantType, "grant_type must be authorization_code"))
   }

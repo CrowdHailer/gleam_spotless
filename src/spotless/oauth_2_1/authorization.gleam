@@ -54,7 +54,6 @@ pub fn request_to_url(endpoint, request) {
   let query = request_to_params(request)
   let query = Some(uri.query_to_string(query))
   Uri(Some(scheme), None, Some(host), port, path, query, None)
-  |> uri.to_string
 }
 
 pub fn request_to_http(endpoint, request) {
