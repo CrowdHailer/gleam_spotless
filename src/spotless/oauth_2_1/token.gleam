@@ -3,7 +3,6 @@ import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/http/response
-import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -150,15 +149,33 @@ pub fn response_from_http(response) {
           None,
           decode.map(decode.string, Some),
         )
-        decode.success(Response(
-          access_token,
-          token_type,
-          expires_in,
-          scope,
-          refresh_token,
-        ))
+        decode.success(
+          Ok(Response(
+            access_token,
+            token_type,
+            expires_in,
+            scope,
+            refresh_token,
+          )),
+        )
       })
-    _ -> panic as { "unexpected response " <> int.to_string(response.status) }
+    response.Response(body:, ..) ->
+      json.parse_bits(body, {
+        use error <- decode.field("error", decode.string)
+        use error_description <- decode.optional_field(
+          "error_description",
+          None,
+          decode.map(decode.string, Some),
+        )
+        use error_uri <- decode.optional_field(
+          "error_uri",
+          None,
+          decode.map(decode.string, Some),
+        )
+        decode.success(
+          Error(ErrorResponse(error:, error_description:, error_uri:)),
+        )
+      })
   }
 }
 
@@ -175,6 +192,14 @@ pub fn response_to_body(response: Response) {
     // #("refresh_token", json.string(response.refresh_token)),
     ]),
     // ),
+  )
+}
+
+pub type ErrorResponse {
+  ErrorResponse(
+    error: String,
+    error_description: Option(String),
+    error_uri: Option(String),
   )
 }
 

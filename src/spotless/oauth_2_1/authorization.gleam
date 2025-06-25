@@ -6,6 +6,7 @@ import gleam/result.{try}
 import gleam/string
 import gleam/uri.{Uri}
 import spotless/oauth_2_1 as oa
+import spotless/proof_key_for_code_exchange as pkce
 
 pub type Request {
   Request(
@@ -14,7 +15,7 @@ pub type Request {
     client_id: String,
     // not optional as I am not using confidential clients
     code_challenge: String,
-    code_challenge_method: CodeChallengeMethod,
+    code_challenge_method: pkce.CodeChallengeMethod,
     // optional but we always send it and require it for unregistered clients
     redirect_uri: String,
     // optionality represented by empty list
@@ -22,26 +23,6 @@ pub type Request {
     // optional
     state: String,
   )
-}
-
-pub type CodeChallengeMethod {
-  Plain
-  S256
-}
-
-pub fn code_challenge_method_to_string(method) {
-  case method {
-    Plain -> "plain"
-    S256 -> "S256"
-  }
-}
-
-pub fn code_challenge_method_from_string(raw) -> Result(CodeChallengeMethod, _) {
-  case raw {
-    "plain" -> Ok(Plain)
-    "S256" -> Ok(S256)
-    _ -> Error(#(InvalidRequest, "unknown code challenge method " <> raw))
-  }
 }
 
 pub fn request_to_params(request) {
@@ -59,7 +40,7 @@ pub fn request_to_params(request) {
     #("code_challenge", code_challenge),
     #(
       "code_challenge_method",
-      code_challenge_method_to_string(code_challenge_method),
+      pkce.code_challenge_method_to_string(code_challenge_method),
     ),
     #("redirect_uri", redirect_uri),
     #("scope", string.join(scope, " ")),
@@ -108,7 +89,13 @@ pub fn request_from_params(params) -> Result(Request, _) {
   use #(client_id, params) <- try(key_pop(params, "client_id"))
   use #(code_challenge, params) <- try(key_pop(params, "code_challenge"))
   use #(raw, params) <- try(key_pop(params, "code_challenge_method"))
-  use method <- try(code_challenge_method_from_string(raw))
+  use method <- try(
+    pkce.code_challenge_method_from_string(raw)
+    |> result.replace_error(#(
+      InvalidRequest,
+      "unknown code challenge method " <> raw,
+    )),
+  )
   use #(redirect_uri, params) <- try(key_pop(params, "redirect_uri"))
   let #(scope, params) = case list.key_pop(params, "scope") {
     Ok(#(scope, params)) -> #(string.split(scope, " "), params)
