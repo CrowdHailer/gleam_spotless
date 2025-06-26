@@ -27,7 +27,8 @@ pub fn bsky(port, scope, state, keypair) {
   // If state is empty string that value is not returned from oauth server
   let origin = Origin(http.Https, "bsky.social", None)
   // No port on client id
-  let client_id = "http://localhost"
+  let client_id =
+    "http://localhost?scope=atproto%20transition:generic%20transition:email%20transition:chat.bsky"
   let redirect_uri = "http://127.0.0.1:" <> int.to_string(port) <> "/"
 
   let server =

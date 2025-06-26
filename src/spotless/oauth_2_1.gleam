@@ -1,4 +1,3 @@
-import gleam/http
 import gleam/http/request
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -84,9 +83,7 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
   let request = token.request_to_http(token_endpoint, request)
   use request <- t.do(case keypair, nonce {
     Some(keypair), Ok(nonce) -> {
-      let uri = request.to_uri(request)
-      use jwt <- t.do(dpop.create_dpop_jwt(keypair, http.Post, uri, nonce))
-
+      use jwt <- t.do(dpop.jwt_for_request(request, keypair, Some(nonce), None))
       t.done(request.set_header(request, "dpop", jwt))
     }
     _, _ -> t.done(request)
