@@ -1,7 +1,7 @@
 import gleam/http
 import gleam/http/request
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import gleam/string
 import gleam/uri.{Uri}
@@ -115,12 +115,20 @@ fn key_pop(params, key) {
 }
 
 pub type Response {
-  Response(code: String, state: String)
+  Response(code: String, state: Option(String), iss: Option(String))
 }
 
 pub fn response_to_params(response) {
-  let Response(code, state) = response
-  [#("code", code), #("state", state)]
+  let Response(code:, state:, iss:) = response
+  let params = [#("code", code)]
+  let params = case state {
+    Some(state) -> list.append(params, [#("state", state)])
+    None -> params
+  }
+  case iss {
+    Some(iss) -> list.append(params, [#("iss", iss)])
+    None -> params
+  }
 }
 
 pub fn response_to_url(endpoint, response) {
@@ -149,8 +157,45 @@ pub fn response_from_params(params) {
       //   [] -> Ok(Nil)
       //   _ -> Error(#(InvalidRequest, "extra params"))
       // })
-      Ok(Response(code, state))
+      Ok(Response(code, Some(state), None))
     }
+  }
+}
+
+/// Nested result, outer for following the protocol inner for defined error responses
+pub fn response_from_query(query) {
+  case query {
+    None ->
+      Ok(Error(#(InvalidRequest, Some("Required parameter code is missing"))))
+    Some(query) ->
+      case uri.parse_query(query) {
+        Ok(params) -> {
+          case list.key_find(params, "code"), list.key_find(params, "error") {
+            Ok(code), _ -> {
+              let code: String = code
+              let state = list.key_find(params, "state") |> option.from_result
+              let iss = list.key_find(params, "iss") |> option.from_result
+              Ok(Ok(Response(code, state, iss)))
+            }
+            _, Ok(error) -> {
+              let description =
+                list.key_find(params, "error_description") |> option.from_result
+              case error_code_from_string(error) {
+                Ok(error) -> Ok(Error(#(error, description)))
+                Error(Nil) -> Error(#(error, description))
+              }
+            }
+            Error(Nil), Error(Nil) ->
+              Ok(
+                Error(#(
+                  InvalidRequest,
+                  Some("Required parameter code is missing"),
+                )),
+              )
+          }
+        }
+        Error(Nil) -> Ok(Error(#(InvalidRequest, Some("invalid query params"))))
+      }
   }
 }
 
@@ -205,6 +250,6 @@ pub fn error_code_from_string(raw) {
     "invalid_scope" -> Ok(InvalidScope)
     "server_error" -> Ok(ServerError)
     "temporarily_unavailable" -> Ok(TemporarilyUnavailable)
-    _ -> Error("invalid error code")
+    _ -> Error(Nil)
   }
 }

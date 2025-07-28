@@ -74,3 +74,18 @@ Further documentation can be found at <https://hexdocs.pm/spotless>.
 gleam run   # Run the project
 gleam test  # Run the tests
 ```
+
+## Notes
+
+### Silent Authentication
+
+Because `prompt=none` in an iframe is no longer an option when third-party cookies are blocked, applications must adjust their sign-in
+patterns to have an authorization code issued.
+Solutions include:
+- Full page redirects, results in the app being loaded twice but with caching this can be fast enough
+- Using refresh token rotation for long running sessions
+- Or use sender constrained (DPop, mTLS) tokens
+- Popups, can be zero size but browsers are decreasing support for popups
+
+- [How to handle third-party cookie blocking in browsers](https://learn.microsoft.com/en-us/entra/identity-platform/reference-third-party-cookies-spas)
+- [Configure Silent Authentication](https://auth0.com/docs/authenticate/login/configure-silent-authentication)
