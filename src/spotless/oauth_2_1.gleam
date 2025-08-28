@@ -31,14 +31,9 @@ pub type App {
   App(client_type: ClientType, client_id: String, redirect_uri: String)
 }
 
-pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
-  let AuthorizationServer(
-    issuer: _,
-    authorization_endpoint:,
-    token_endpoint:,
-    pushed_authorization_request_endpoint:,
-  ) = server
-  let App(client_type: _, client_id:, redirect_uri:) = app
+pub fn start(server, app, scope, state, code_challenge_method) {
+  let AuthorizationServer(issuer: _, ..) = server
+  let App(client_id:, redirect_uri:, ..) = app
 
   use code_verifier <- t.do(pkce.create_code_verifier())
   use code_challenge <- t.do(pkce.create_code_challenge(
@@ -54,6 +49,53 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
       scope:,
       state:,
     )
+
+  t.done(#(request, code_verifier))
+}
+
+/// Copy/Paste of main authorize function but without DPoP
+/// and with state, iss returned
+pub fn grant(redirect, server, app, code_verifier) {
+  let AuthorizationServer(token_endpoint:, ..) = server
+  let App(client_id:, redirect_uri:, ..) = app
+  use response <- t.try(authorization_response_from_uri(redirect))
+  let authorization.Response(state:, iss:, ..) = response
+
+  let request =
+    token.Request(
+      grant_type: token.AuthorizationCode,
+      client_id:,
+      code: response.code,
+      code_verifier:,
+      redirect_uri:,
+    )
+
+  let request = token.request_to_http(token_endpoint, request)
+
+  use response <- t.do(t.fetch(request))
+  use response <- t.try(token_response_from_http(response))
+  case response {
+    Ok(response) -> t.done(#(response, state, iss))
+    Error(token.ErrorResponse(error:, ..)) ->
+      t.abort(snag.new(error) |> snag.layer("failed to fetch token"))
+  }
+}
+
+pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
+  use #(request, code_verifier) <- t.do(start(
+    server,
+    app,
+    scope,
+    state,
+    code_challenge_method,
+  ))
+  let AuthorizationServer(
+    pushed_authorization_request_endpoint:,
+    authorization_endpoint:,
+    token_endpoint:,
+    ..,
+  ) = server
+  let App(client_id:, redirect_uri:, ..) = app
   use #(url, nonce) <- t.do(case pushed_authorization_request_endpoint {
     Some(#(endpoint, _)) -> {
       use #(response, headers) <- t.do(par.do_request(endpoint, request))
