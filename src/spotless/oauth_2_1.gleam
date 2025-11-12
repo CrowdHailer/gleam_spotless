@@ -48,9 +48,15 @@ pub fn start(server, app, scope, state, code_challenge_method) {
       code_challenge_method:,
       scope:,
       state:,
+      extra: [],
     )
 
   t.done(#(request, code_verifier))
+}
+
+pub fn add_parameter(request, key, value) {
+  let authorization.Request(extra:, ..) = request
+  authorization.Request(..request, extra: [#(key, value), ..extra])
 }
 
 /// Copy/Paste of main authorize function but without DPoP

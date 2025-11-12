@@ -22,6 +22,7 @@ pub type Request {
     scope: List(String),
     // optional
     state: String,
+    extra: List(#(String, String)),
   )
 }
 
@@ -33,6 +34,7 @@ pub fn request_to_params(request) {
     redirect_uri:,
     scope:,
     state:,
+    extra:,
   ) = request
   [
     #("response_type", "code"),
@@ -45,6 +47,7 @@ pub fn request_to_params(request) {
     #("redirect_uri", redirect_uri),
     #("scope", string.join(scope, " ")),
     #("state", state),
+    ..extra
   ]
 }
 
@@ -88,7 +91,7 @@ pub fn request_from_params(params) -> Result(Request, _) {
   use #(client_id, params) <- try(key_pop(params, "client_id"))
   use #(code_challenge, params) <- try(key_pop(params, "code_challenge"))
   use #(raw, params) <- try(key_pop(params, "code_challenge_method"))
-  use method <- try(
+  use code_challenge_method <- try(
     pkce.code_challenge_method_from_string(raw)
     |> result.replace_error(#(
       InvalidRequest,
@@ -100,13 +103,21 @@ pub fn request_from_params(params) -> Result(Request, _) {
     Ok(#(scope, params)) -> #(string.split(scope, " "), params)
     Error(_) -> #([], params)
   }
-  use #(state, _params) <- try(key_pop(params, "state"))
+  use #(state, extra) <- try(key_pop(params, "state"))
   // The client MUST ignore unrecognized response parameters
   // use Nil <- try(case params {
   //   [] -> Ok(Nil)
   //   _ -> Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
   // })
-  Ok(Request(client_id, code_challenge, method, redirect_uri, scope, state))
+  Ok(Request(
+    client_id:,
+    code_challenge:,
+    code_challenge_method:,
+    redirect_uri:,
+    scope:,
+    state:,
+    extra:,
+  ))
 }
 
 fn key_pop(params, key) {
