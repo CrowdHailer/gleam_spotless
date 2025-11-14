@@ -1,15 +1,32 @@
 import gleam/http
 import gleam/int
+import gleam/list
 import gleam/option.{None, Some}
+import gleam/uri
 import midas/task as t
 import spotless/oauth_2_1 as oa
 import spotless/origin.{Origin}
 import spotless/proof_key_for_code_exchange as pkce
 
+/// The authenticate function and therefore all named helpers builds upon the oauth_2_1.authorize function
+/// This use the `task.Follow` effect and keeps the process state in memory as a continuation.
+/// Keeping the state in memory is not possible if the state needs to be serialized in any way.
+/// For example a server that would keep code_verifier in a session cannot keep a gleam continuation in a session.
+///
+/// Instead use the `_server` function and use `oauth_2_1.start`
 pub fn authenticate(service, scope, state, port, code_challenge_method) {
   let origin = Origin(http.Https, "spotless.run", None)
   let client_id = "http://localhost:" <> int.to_string(port)
-  let redirect_uri = client_id <> "/"
+  let redirect_uri =
+    uri.Uri(
+      scheme: Some("http"),
+      userinfo: None,
+      host: Some("localhost"),
+      port: Some(port),
+      path: "/",
+      query: None,
+      fragment: None,
+    )
 
   let server =
     oa.AuthorizationServer(
@@ -23,13 +40,48 @@ pub fn authenticate(service, scope, state, port, code_challenge_method) {
   oa.authorize(server, app, None, scope, state, code_challenge_method)
 }
 
+fn spotless_server(service) {
+  let origin = Origin(http.Https, "spotless.run", None)
+  oa.AuthorizationServer(
+    issuer: "https://spotless.run",
+    authorization_endpoint: #(origin, "/authorize/" <> service),
+    token_endpoint: #(origin, "/token"),
+    pushed_authorization_request_endpoint: None,
+  )
+}
+
+pub fn local(port, path) {
+  let client_id = "http://localhost:" <> int.to_string(port)
+  let redirect_uri =
+    uri.Uri(
+      scheme: Some("http"),
+      userinfo: None,
+      host: Some("localhost"),
+      port: Some(port),
+      path: path,
+      query: None,
+      fragment: None,
+    )
+  oa.App(oa.Public, client_id, redirect_uri)
+}
+
 pub fn bsky(port, scope, state, keypair) {
   // If state is empty string that value is not returned from oauth server
   let origin = Origin(http.Https, "bsky.social", None)
   // No port on client id
   let client_id =
     "http://localhost?scope=atproto%20transition:generic%20transition:email%20transition:chat.bsky"
-  let redirect_uri = "http://127.0.0.1:" <> int.to_string(port) <> "/"
+
+  let redirect_uri =
+    uri.Uri(
+      scheme: Some("http"),
+      userinfo: None,
+      host: Some("127.0.0.1"),
+      port: Some(port),
+      path: "/",
+      query: None,
+      fragment: None,
+    )
 
   let server =
     oa.AuthorizationServer(
@@ -44,6 +96,18 @@ pub fn bsky(port, scope, state, keypair) {
   let app = oa.App(oa.Public, client_id, redirect_uri)
 
   oa.authorize(server, app, Some(keypair), scope, state, pkce.S256)
+}
+
+const services = [
+  "dnsimple", "dropbox", "github", "google", "linkedin", "netlify", "strava",
+  "twitter", "vimeo",
+]
+
+pub fn server(service) {
+  case list.contains(services, service) {
+    True -> Ok(spotless_server(service))
+    False -> Error(Nil)
+  }
 }
 
 // Currently DNSimple don't use scopes

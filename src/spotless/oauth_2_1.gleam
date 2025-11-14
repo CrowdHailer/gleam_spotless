@@ -28,7 +28,7 @@ pub type AuthorizationServer {
 }
 
 pub type App {
-  App(client_type: ClientType, client_id: String, redirect_uri: String)
+  App(client_type: ClientType, client_id: String, redirect_uri: uri.Uri)
 }
 
 pub fn start(server, app, scope, state, code_challenge_method) {
@@ -43,7 +43,7 @@ pub fn start(server, app, scope, state, code_challenge_method) {
   let request =
     authorization.Request(
       client_id:,
-      redirect_uri:,
+      redirect_uri: uri.to_string(redirect_uri),
       code_challenge:,
       code_challenge_method:,
       scope:,
@@ -73,7 +73,7 @@ pub fn grant(redirect, server, app, code_verifier) {
       client_id:,
       code: response.code,
       code_verifier:,
-      redirect_uri:,
+      redirect_uri: uri.to_string(redirect_uri),
     )
 
   let request = token.request_to_http(token_endpoint, request)
@@ -125,7 +125,7 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
       client_id:,
       code: response.code,
       code_verifier:,
-      redirect_uri:,
+      redirect_uri: uri.to_string(redirect_uri),
     )
 
   let request = token.request_to_http(token_endpoint, request)
