@@ -8,6 +8,14 @@ pub type Origin {
   Origin(scheme: http.Scheme, host: String, port: Option(Int))
 }
 
+pub fn https(host) {
+  Origin(http.Https, host, None)
+}
+
+pub fn http(host) {
+  Origin(http.Http, host, None)
+}
+
 pub fn to_uri(origin) {
   let Origin(scheme, host, port) = origin
   uri.Uri(
