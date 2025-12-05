@@ -6,18 +6,19 @@ import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/uri
+import midas/effect as e
 import midas/task as t
 
 pub fn generate_key() {
-  t.generate_keypair(t.EcKeyGenParams("ECDSA", "P-256"), True, [
-    t.CanSign,
-    t.CanVerify,
+  t.generate_keypair(e.EcKeyGenParams("ECDSA", "P-256"), True, [
+    e.CanSign,
+    e.CanVerify,
   ])
 }
 
 @deprecated("use jwt for request instead")
 pub fn create_dpop_jwt(keypair, method, uri, nonce) {
-  let t.KeyPair(public_key, private_key) = keypair
+  let e.KeyPair(public_key, private_key) = keypair
   use jwk <- t.do(t.export_jwk(public_key))
   use now <- t.do(t.unix_now())
 
@@ -40,7 +41,7 @@ pub fn create_dpop_jwt(keypair, method, uri, nonce) {
 }
 
 pub fn jwt_for_request(request, keypair, nonce, token) {
-  let t.KeyPair(public_key, private_key) = keypair
+  let e.KeyPair(public_key, private_key) = keypair
   use jwk <- t.do(t.export_jwk(public_key))
 
   let headers =
@@ -80,7 +81,7 @@ fn common_claims(request) {
 fn auth_claim(token) {
   case token {
     Some(token) -> {
-      use ath <- t.do(t.hash(t.SHA256, <<token:utf8>>))
+      use ath <- t.do(t.hash(e.Sha256, <<token:utf8>>))
       let ath = bit_array.base64_url_encode(ath, False)
       t.done([#("ath", json.string(ath))])
     }
@@ -95,7 +96,7 @@ fn jwt_encode(headers, payload, private_key) {
     <> "."
     <> bit_array.base64_url_encode(<<json.to_string(payload):utf8>>, False)
   use sig <- t.do(
-    t.sign(t.EcdsaParams(t.SHA256), private_key, <<to_sign:utf8>>),
+    t.sign(e.EcdsaParams(e.Sha256), private_key, <<to_sign:utf8>>),
   )
   t.done(to_sign <> "." <> bit_array.base64_url_encode(sig, False))
 }

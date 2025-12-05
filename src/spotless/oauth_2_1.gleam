@@ -115,7 +115,7 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
       t.done(#(url, Error(Nil)))
     }
   })
-  let url = uri.to_string(url)
+
   use redirect <- t.do(t.follow(url))
   use response <- t.try(authorization_response_from_uri(redirect))
 

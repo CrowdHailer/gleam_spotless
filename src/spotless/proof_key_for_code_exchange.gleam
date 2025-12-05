@@ -1,4 +1,5 @@
 import gleam/bit_array
+import midas/effect
 import midas/task as t
 
 pub type CodeChallengeMethod {
@@ -38,7 +39,7 @@ pub fn create_code_challenge(verifier, method) {
   case method {
     Plain -> t.done(verifier)
     S256 -> {
-      use bytes <- t.do(t.hash(t.SHA256, <<verifier:utf8>>))
+      use bytes <- t.do(t.hash(effect.Sha256, <<verifier:utf8>>))
       t.done(bit_array.base64_url_encode(bytes, False))
     }
   }
