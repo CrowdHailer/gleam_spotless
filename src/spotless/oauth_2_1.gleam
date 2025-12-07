@@ -62,16 +62,25 @@ pub fn add_parameter(request, key, value) {
 /// Copy/Paste of main authorize function but without DPoP
 /// and with state, iss returned
 pub fn grant(redirect, server, app, code_verifier) {
-  let AuthorizationServer(token_endpoint:, ..) = server
-  let App(client_id:, redirect_uri:, ..) = app
   use response <- t.try(authorization_response_from_uri(redirect))
   let authorization.Response(state:, iss:, ..) = response
+
+  use response <- t.do(get_token(response.code, server, app, code_verifier))
+  t.done(#(response, state, iss))
+}
+
+/// Get a token response from a code.
+/// This endpoint is more useful that the grant function as working out which app 
+/// and token verifier should be used depend on getting back a valid, signed, state
+pub fn get_token(code, server, app, code_verifier) {
+  let AuthorizationServer(token_endpoint:, ..) = server
+  let App(client_id:, redirect_uri:, ..) = app
 
   let request =
     token.Request(
       grant_type: token.AuthorizationCode,
       client_id:,
-      code: response.code,
+      code: code,
       code_verifier:,
       redirect_uri: uri.to_string(redirect_uri),
     )
@@ -81,7 +90,7 @@ pub fn grant(redirect, server, app, code_verifier) {
   use response <- t.do(t.fetch(request))
   use response <- t.try(token_response_from_http(response))
   case response {
-    Ok(response) -> t.done(#(response, state, iss))
+    Ok(response) -> t.done(response)
     Error(token.ErrorResponse(error:, ..)) ->
       t.abort(snag.new(error) |> snag.layer("failed to fetch token"))
   }
