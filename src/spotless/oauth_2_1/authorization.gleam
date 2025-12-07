@@ -142,12 +142,19 @@ pub fn response_to_params(response) {
   }
 }
 
-pub fn response_to_url(endpoint, response) {
+/// Turn the authorization response into the redirect uri.
+pub fn response_to_uri(endpoint, response) {
   let #(Origin(scheme, host, port), path) = endpoint
   let scheme = http.scheme_to_string(scheme)
   let query = response_to_params(response)
   let query = Some(uri.query_to_string(query))
   Uri(Some(scheme), None, Some(host), port, path, query, None)
+}
+
+/// Turn the authorization response into the redirect uri.
+@deprecated("use response_to_uri")
+pub fn response_to_url(endpoint, response) {
+  response_to_uri(endpoint, response)
   |> uri.to_string
 }
 
