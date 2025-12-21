@@ -1,4 +1,5 @@
 import gleam/http
+import gleam/http/request
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -14,6 +15,18 @@ pub fn https(host) {
 
 pub fn http(host) {
   Origin(http.Http, host, None)
+}
+
+pub fn to_request(origin) {
+  let Origin(scheme:, host:, port:) = origin
+  let request =
+    request.new()
+    |> request.set_scheme(scheme)
+    |> request.set_host(host)
+  case port {
+    Some(port) -> request.set_port(request, port)
+    None -> request
+  }
 }
 
 pub fn to_uri(origin) {
