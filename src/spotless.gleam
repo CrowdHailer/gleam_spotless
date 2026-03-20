@@ -4,8 +4,8 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/uri
 import midas/task as t
+import ogre/origin.{Origin}
 import spotless/oauth_2_1 as oa
-import spotless/origin.{Origin}
 import spotless/proof_key_for_code_exchange as pkce
 
 /// The authenticate function and therefore all named helpers builds upon the oauth_2_1.authorize function

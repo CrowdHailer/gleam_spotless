@@ -6,8 +6,8 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/uri.{type Uri, Uri}
+import ogre/origin
 import spotless/httpx
-import spotless/origin
 
 pub const oauth_protected_resource = "oauth-protected-resource"
 

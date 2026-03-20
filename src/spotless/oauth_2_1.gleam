@@ -5,11 +5,11 @@ import gleam/result
 import gleam/string
 import gleam/uri
 import midas/task as t
+import ogre/origin.{type Origin}
 import snag
 import spotless/demonstrating_proof_of_possession as dpop
 import spotless/oauth_2_1/authorization
 import spotless/oauth_2_1/token
-import spotless/origin.{type Origin}
 import spotless/proof_key_for_code_exchange as pkce
 import spotless/pushed_authorization_request as par
 

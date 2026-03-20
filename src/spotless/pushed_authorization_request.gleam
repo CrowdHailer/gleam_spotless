@@ -12,9 +12,9 @@ import gleam/result
 import gleam/string
 import gleam/uri.{Uri}
 import midas/task as t
+import ogre/origin.{Origin}
 import snag
 import spotless/oauth_2_1/authorization
-import spotless/origin.{Origin}
 
 pub fn do_request(endpoint, request) {
   let request = request_to_http(endpoint, request)

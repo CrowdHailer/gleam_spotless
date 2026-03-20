@@ -8,7 +8,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import gleam/uri
-import spotless/origin.{Origin}
+import ogre/origin.{Origin}
 
 pub type Request {
   Request(

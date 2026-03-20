@@ -5,7 +5,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import gleam/string
 import gleam/uri.{Uri}
-import spotless/origin.{Origin}
+import ogre/origin.{Origin}
 import spotless/proof_key_for_code_exchange as pkce
 
 pub type Request {
