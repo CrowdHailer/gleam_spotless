@@ -155,7 +155,7 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
   }
 }
 
-fn authorization_response_from_uri(redirect) {
+pub fn authorization_response_from_uri(redirect) {
   authorization.response_from_uri(redirect)
   |> result.map_error(fn(error) {
     let #(_reason, description) = error
@@ -163,7 +163,7 @@ fn authorization_response_from_uri(redirect) {
   })
 }
 
-fn token_response_from_http(response) {
+pub fn token_response_from_http(response) {
   token.response_from_http(response)
   |> result.map_error(fn(error) { snag.new(string.inspect(error)) })
 }
