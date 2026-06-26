@@ -90,7 +90,10 @@ pub fn request_from_params(params) -> Result(Request, _) {
   })
   use #(client_id, params) <- try(key_pop(params, "client_id"))
   use #(code_challenge, params) <- try(key_pop(params, "code_challenge"))
-  use #(raw, params) <- try(key_pop(params, "code_challenge_method"))
+  let #(raw, params) =
+    key_pop(params, "code_challenge_method")
+    |> result.unwrap(#("plain", params))
+
   use code_challenge_method <- try(
     pkce.code_challenge_method_from_string(raw)
     |> result.replace_error(#(
@@ -100,10 +103,16 @@ pub fn request_from_params(params) -> Result(Request, _) {
   )
   use #(redirect_uri, params) <- try(key_pop(params, "redirect_uri"))
   let #(scope, params) = case list.key_pop(params, "scope") {
-    Ok(#(scope, params)) -> #(string.split(scope, " "), params)
+    Ok(#(scope, params)) -> {
+      let scope = case string.trim(scope) {
+        "" -> []
+        scope -> string.split(scope, " ")
+      }
+      #(scope, params)
+    }
     Error(_) -> #([], params)
   }
-  use #(state, extra) <- try(key_pop(params, "state"))
+  let #(state, extra) = key_pop(params, "state") |> result.unwrap(#("", []))
   // The client MUST ignore unrecognized response parameters
   // use Nil <- try(case params {
   //   [] -> Ok(Nil)
