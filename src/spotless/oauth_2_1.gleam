@@ -5,6 +5,7 @@ import gleam/result
 import gleam/string
 import gleam/uri
 import midas/task as t
+import non_empty_list.{type NonEmptyList}
 import ogre/origin.{type Origin}
 import snag
 import spotless/demonstrating_proof_of_possession as dpop
@@ -18,22 +19,39 @@ pub type ClientType {
   Confidential(client_secret: String)
 }
 
+/// Metadata of an authorization server.
+/// 
+/// Names follow the RFC8414 specification.
+/// Where a list of values is expected and a server does not support the feature, e.g. PKCE, add an empty list
 pub type AuthorizationServer {
   AuthorizationServer(
     issuer: String,
     authorization_endpoint: #(Origin, String),
     token_endpoint: #(Origin, String),
+    scopes_supported: List(String),
     pushed_authorization_request_endpoint: Option(#(#(Origin, String), Bool)),
+    code_challenge_methods_supported: List(String),
   )
 }
 
+/// Configuration of a OAuth client
 pub type App {
-  App(client_type: ClientType, client_id: String, redirect_uri: uri.Uri)
+  App(
+    client_type: ClientType,
+    client_id: String,
+    redirect_uris: NonEmptyList(uri.Uri),
+  )
 }
 
-pub fn start(server, app, scope, state, code_challenge_method) {
+pub fn start(
+  server,
+  client_id,
+  redirect_uri,
+  scope,
+  state,
+  code_challenge_method,
+) {
   let AuthorizationServer(issuer: _, ..) = server
-  let App(client_id:, redirect_uri:, ..) = app
 
   use code_verifier <- t.do(pkce.create_code_verifier())
   use code_challenge <- t.do(pkce.create_code_challenge(
@@ -74,8 +92,8 @@ pub fn grant(redirect, server, app, code_verifier) {
 /// and token verifier should be used depend on getting back a valid, signed, state
 pub fn get_token(code, server, app, code_verifier) {
   let AuthorizationServer(token_endpoint:, ..) = server
-  let App(client_id:, redirect_uri:, ..) = app
-
+  let App(client_id:, redirect_uris:, ..) = app
+  let redirect_uri = non_empty_list.first(redirect_uris)
   let request =
     token.Request(
       grant_type: token.AuthorizationCode,
@@ -96,10 +114,19 @@ pub fn get_token(code, server, app, code_verifier) {
   }
 }
 
-pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
+pub fn authorize(
+  server,
+  client_id,
+  redirect_uri,
+  keypair,
+  scope,
+  state,
+  code_challenge_method,
+) {
   use #(request, code_verifier) <- t.do(start(
     server,
-    app,
+    client_id,
+    redirect_uri,
     scope,
     state,
     code_challenge_method,
@@ -110,7 +137,7 @@ pub fn authorize(server, app, keypair, scope, state, code_challenge_method) {
     token_endpoint:,
     ..,
   ) = server
-  let App(client_id:, redirect_uri:, ..) = app
+
   use #(url, nonce) <- t.do(case pushed_authorization_request_endpoint {
     Some(#(endpoint, _)) -> {
       use #(response, headers) <- t.do(par.do_request(endpoint, request))

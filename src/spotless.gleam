@@ -27,10 +27,17 @@ pub fn authenticate(service, scope, state, port, code_challenge_method) {
       fragment: None,
     )
 
-  let app = oa.App(oa.Public, client_id, redirect_uri)
   let server = spotless_server(service)
 
-  oa.authorize(server, app, None, scope, state, code_challenge_method)
+  oa.authorize(
+    server,
+    client_id,
+    redirect_uri,
+    None,
+    scope,
+    state,
+    code_challenge_method,
+  )
 }
 
 /// The origin of the Spotless service.
@@ -42,23 +49,10 @@ pub fn spotless_server(service) {
     issuer: "https://spotless.run",
     authorization_endpoint: #(origin, "/authorize/" <> service),
     token_endpoint: #(origin, "/token"),
+    scopes_supported: [],
     pushed_authorization_request_endpoint: None,
+    code_challenge_methods_supported: [],
   )
-}
-
-pub fn local(port, path) {
-  let client_id = "http://localhost:" <> int.to_string(port)
-  let redirect_uri =
-    uri.Uri(
-      scheme: Some("http"),
-      userinfo: None,
-      host: Some("localhost"),
-      port: Some(port),
-      path: path,
-      query: None,
-      fragment: None,
-    )
-  oa.App(oa.Public, client_id, redirect_uri)
 }
 
 pub fn bsky(port, scope, state, keypair) {
@@ -84,14 +78,23 @@ pub fn bsky(port, scope, state, keypair) {
       issuer: "https://bsky.social",
       authorization_endpoint: #(origin, "/oauth/authorize"),
       token_endpoint: #(origin, "/oauth/token"),
+      scopes_supported: [],
       pushed_authorization_request_endpoint: Some(#(
         #(origin, "/oauth/par"),
         True,
       )),
+      code_challenge_methods_supported: [],
     )
-  let app = oa.App(oa.Public, client_id, redirect_uri)
 
-  oa.authorize(server, app, Some(keypair), scope, state, pkce.S256)
+  oa.authorize(
+    server,
+    client_id,
+    redirect_uri,
+    Some(keypair),
+    scope,
+    state,
+    pkce.S256,
+  )
 }
 
 const services = [
