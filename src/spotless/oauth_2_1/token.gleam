@@ -1,6 +1,5 @@
 import gleam/bit_array
 import gleam/dynamic/decode
-import gleam/http
 import gleam/http/request
 import gleam/http/response
 import gleam/json
@@ -8,114 +7,84 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result.{try}
 import gleam/uri
-import ogre/origin.{Origin}
+import ogre/origin
+import spotless/httpx
 
-pub type Request {
-  Request(
-    grant_type: GrantType,
+pub type AuthorizationCode {
+  AuthorizationCode(
     client_id: String,
     // client_secret: String,
     code: String,
     code_verifier: String,
     // needed for atproto
-    redirect_uri: String,
+    // redirect_uri: String,
   )
 }
 
-pub type GrantType {
-  AuthorizationCode
-  RefreshToken
-}
-
-fn grant_type_to_string(grant_type) {
-  case grant_type {
-    AuthorizationCode -> "authorization_code"
-    RefreshToken -> "refresh_token"
-  }
-}
-
-fn grant_type_from_string(grant_type) {
-  case grant_type {
-    "authorization_code" -> Ok(AuthorizationCode)
-    "refresh_token" -> Ok(RefreshToken)
-    _ -> Error(#(InvalidGrant, "invalid grant_type"))
-  }
-}
-
-fn request_to_params(request) {
-  let Request(grant_type, client_id, code, code_verifier, redirect_uri) =
-    request
+fn authorization_code_to_params(request) {
+  let AuthorizationCode(client_id, code, code_verifier) = request
   [
-    #("grant_type", grant_type_to_string(grant_type)),
+    #("grant_type", "authorization_code"),
     #("client_id", client_id),
     // #("client_secret", client_secret),
     #("code", code),
     #("code_verifier", code_verifier),
-    #("redirect_uri", redirect_uri),
+    // See https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1#redirect-uri-in-token-request
+  // redirect uri is not part of the OAuth 2.1 token request
+  // #("redirect_uri", redirect_uri),
   ]
 }
 
-pub fn request_to_http(endpoint, request) {
-  let query = request_to_params(request)
-  params_to_http(endpoint, query)
+pub fn authorization_code_to_http(
+  endpoint: #(origin.Origin, String),
+  request: AuthorizationCode,
+) -> request.Request(BitArray) {
+  httpx.post_form_params(endpoint, authorization_code_to_params(request))
+  |> request.prepend_header("accept", "application/json")
 }
 
-pub fn params_to_http(endpoint, query) {
-  let #(Origin(scheme, host, port), path) = endpoint
-  let r =
-    request.new()
-    |> request.set_method(http.Post)
-    |> request.set_scheme(scheme)
-    |> request.set_host(host)
-    |> request.set_path(path)
-    |> request.prepend_header(
-      "content-type",
-      "application/x-www-form-urlencoded",
-    )
-    |> request.prepend_header("accept", "application/json")
-    |> request.set_body(bit_array.from_string(uri.query_to_string(query)))
-  case port {
-    Some(port) -> request.set_port(r, port)
-    None -> r
-  }
+/// Unconstrained set of parameters to a token request, must include grant_type to be valid.
+@deprecated("use httpx.post_form_params instead")
+pub fn params_to_http(endpoint, params) {
+  httpx.post_form_params(endpoint, params)
+  |> request.prepend_header("accept", "application/json")
 }
 
-pub fn request_from_http(request, redirect_uri) {
+pub fn request_from_http(request) {
   let request.Request(body:, ..) = request
   case bit_array.to_string(body) {
     Ok(body) ->
       case uri.parse_query(body) {
-        Ok(params) -> request_from_params(params, redirect_uri)
+        Ok(params) -> key_pop(params, "grant_type")
+        // request_from_params(params, redirect_uri)
         Error(_) -> Error(#(InvalidRequest, "missing params"))
       }
     Error(_) -> Error(#(InvalidRequest, "not utf8"))
   }
 }
 
-pub fn request_from_params(params, redirect_uri) -> Result(Request, _) {
-  use #(grant_type, params) <- try(key_pop(params, "grant_type"))
+// pub fn request_from_params(params, redirect_uri) -> Result(Request, _) {
+//   use #(grant_type, params) <- try(key_pop(params, "grant_type"))
 
-  use type_ <- try(grant_type_from_string(grant_type))
-  case type_ {
-    AuthorizationCode -> {
-      use #(client_id, params) <- try(key_pop(params, "client_id"))
-      use #(code, params) <- try(key_pop(params, "code"))
-      use #(code_verifier, _params) <- try(key_pop(params, "code_verifier"))
-      // The client MUST ignore unrecognized response parameters
-      // use Nil <- try(case params {
-      //   [] -> Ok(Nil)
-      //   _ ->
-      //     Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
-      // })
-      Ok(Request(
-        AuthorizationCode,
-        client_id,
-        code,
-        code_verifier,
-        redirect_uri,
-      ))
-    }
-    _ -> Error(#(UnsupportedGrantType, "grant_type must be authorization_code"))
+//   use type_ <- try(grant_type_from_string(grant_type))
+//   case type_ {
+//     AuthorizationCode -> todo
+//     _ -> Error(#(UnsupportedGrantType, "grant_type must be authorization_code"))
+//   }
+// }
+
+pub fn authorization_code_from_params(params) {
+  {
+    use #(client_id, params) <- try(key_pop(params, "client_id"))
+    use #(code, params) <- try(key_pop(params, "code"))
+    use #(code_verifier, _params) <- try(key_pop(params, "code_verifier"))
+    // The client MUST ignore unrecognized response parameters
+    // use Nil <- try(case params {
+    //   [] -> Ok(Nil)
+    //   _ ->
+    //     Error(#(InvalidRequest, "extra params: " <> string.inspect(params)))
+    // })
+    Ok(AuthorizationCode(client_id, code, code_verifier))
   }
 }
 
@@ -209,6 +178,19 @@ pub type ErrorResponse {
     error_description: Option(String),
     error_uri: Option(String),
   )
+}
+
+pub fn error_response_to_http(response) -> response.Response(BitArray) {
+  let ErrorResponse(error:, error_description:, error_uri:) = response
+  let data =
+    json.object([
+      #("error", json.string(error)),
+      #("error_description", json.nullable(error_description, json.string)),
+      #("error_uri", json.nullable(error_uri, json.string)),
+    ])
+  response.new(400)
+  |> response.set_header("content-type", "application/json")
+  |> response.set_body(<<json.to_string(data):utf8>>)
 }
 
 pub type Fail {

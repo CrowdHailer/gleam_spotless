@@ -92,18 +92,11 @@ pub fn grant(redirect, server, app, code_verifier) {
 /// and token verifier should be used depend on getting back a valid, signed, state
 pub fn get_token(code, server, app, code_verifier) {
   let AuthorizationServer(token_endpoint:, ..) = server
-  let App(client_id:, redirect_uris:, ..) = app
-  let redirect_uri = non_empty_list.first(redirect_uris)
-  let request =
-    token.Request(
-      grant_type: token.AuthorizationCode,
-      client_id:,
-      code: code,
-      code_verifier:,
-      redirect_uri: uri.to_string(redirect_uri),
-    )
+  let App(client_id:, ..) = app
 
-  let request = token.request_to_http(token_endpoint, request)
+  let request = token.AuthorizationCode(client_id:, code: code, code_verifier:)
+
+  let request = token.authorization_code_to_http(token_endpoint, request)
 
   use response <- t.do(t.fetch(request))
   use response <- t.try(token_response_from_http(response))
@@ -156,15 +149,9 @@ pub fn authorize(
   use response <- t.try(authorization_response_from_uri(redirect))
 
   let request =
-    token.Request(
-      grant_type: token.AuthorizationCode,
-      client_id:,
-      code: response.code,
-      code_verifier:,
-      redirect_uri: uri.to_string(redirect_uri),
-    )
+    token.AuthorizationCode(client_id:, code: response.code, code_verifier:)
 
-  let request = token.request_to_http(token_endpoint, request)
+  let request = token.authorization_code_to_http(token_endpoint, request)
   use request <- t.do(case keypair, nonce {
     Some(keypair), Ok(nonce) -> {
       use jwt <- t.do(dpop.jwt_for_request(request, keypair, Some(nonce), None))

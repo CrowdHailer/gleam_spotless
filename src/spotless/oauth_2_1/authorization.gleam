@@ -60,18 +60,12 @@ pub fn request_to_url(endpoint, request) {
 }
 
 pub fn request_to_http(endpoint, request) {
-  let #(Origin(scheme, host, port), path) = endpoint
-  let request =
-    request.new()
-    |> request.set_scheme(scheme)
-    |> request.set_host(host)
-    |> request.set_path(path)
-    |> request.set_query(request_to_params(request))
-    |> request.set_body(<<>>)
-  case port {
-    Some(port) -> request.set_port(request, port)
-    None -> request
-  }
+  let #(origin, path) = endpoint
+
+  origin.to_request(origin)
+  |> request.set_path(path)
+  |> request.set_query(request_to_params(request))
+  |> request.set_body(<<>>)
 }
 
 // Used by an OAuth server to turn an incoming HTTP request into a `AuthorizationRequest`.
@@ -103,13 +97,7 @@ pub fn request_from_params(params) -> Result(Request, _) {
   )
   use #(redirect_uri, params) <- try(key_pop(params, "redirect_uri"))
   let #(scope, params) = case list.key_pop(params, "scope") {
-    Ok(#(scope, params)) -> {
-      let scope = case string.trim(scope) {
-        "" -> []
-        scope -> string.split(scope, " ")
-      }
-      #(scope, params)
-    }
+    Ok(#(scope, params)) -> #(split_scope(scope), params)
     Error(_) -> #([], params)
   }
   let #(state, extra) = key_pop(params, "state") |> result.unwrap(#("", []))
@@ -127,6 +115,14 @@ pub fn request_from_params(params) -> Result(Request, _) {
     state:,
     extra:,
   ))
+}
+
+/// split a uri encoded list of scopes to a list of scopes
+pub fn split_scope(scope: String) -> List(String) {
+  case string.trim(scope) {
+    "" -> []
+    _ -> string.split(scope, " ")
+  }
 }
 
 fn key_pop(params, key) {
@@ -158,6 +154,15 @@ pub fn response_to_uri(endpoint, response) {
   let query = response_to_params(response)
   let query = Some(uri.query_to_string(query))
   Uri(Some(scheme), None, Some(host), port, path, query, None)
+}
+
+pub fn response_to_http(endpoint, response) {
+  let #(origin, path) = endpoint
+
+  origin.to_request(origin)
+  |> request.set_path(path)
+  |> request.set_query(response_to_params(response))
+  |> request.set_body(<<>>)
 }
 
 /// Turn the authorization response into the redirect uri.

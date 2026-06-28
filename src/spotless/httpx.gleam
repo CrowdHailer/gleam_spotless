@@ -1,5 +1,9 @@
+import gleam/http
+import gleam/http/request
 import gleam/list
 import gleam/string
+import gleam/uri
+import ogre/origin
 
 pub type Challenge {
   Challenge(auth_schema: String, params: List(Param))
@@ -29,4 +33,14 @@ fn escape_quoted(string) {
     |> string.replace("\\", "\\\\")
     |> string.replace("\"", "\\\"")
   "\"" <> content <> "\""
+}
+
+pub fn post_form_params(endpoint, params) {
+  let #(origin, path) = endpoint
+
+  origin.to_request(origin)
+  |> request.set_method(http.Post)
+  |> request.set_path(path)
+  |> request.prepend_header("content-type", "application/x-www-form-urlencoded")
+  |> request.set_body(<<uri.query_to_string(params):utf8>>)
 }

@@ -3,7 +3,6 @@
 import gleam/bit_array
 import gleam/dynamic/decode
 import gleam/http
-import gleam/http/request
 import gleam/http/response
 import gleam/int
 import gleam/json
@@ -14,6 +13,7 @@ import gleam/uri.{Uri}
 import midas/task as t
 import ogre/origin.{Origin}
 import snag
+import spotless/httpx
 import spotless/oauth_2_1/authorization
 
 pub fn do_request(endpoint, request) {
@@ -29,20 +29,7 @@ pub fn do_request(endpoint, request) {
 }
 
 pub fn request_to_http(endpoint, request) {
-  let #(Origin(scheme, host, port), path) = endpoint
-  let params = authorization.request_to_params(request)
-  let request =
-    request.new()
-    |> request.set_method(http.Post)
-    |> request.set_scheme(scheme)
-    |> request.set_host(host)
-    |> request.set_path(path)
-    |> request.set_header("Content-Type", "application/x-www-form-urlencoded")
-    |> request.set_body(<<uri.query_to_string(params):utf8>>)
-  case port {
-    Some(port) -> request.set_port(request, port)
-    None -> request
-  }
+  httpx.post_form_params(endpoint, authorization.request_to_params(request))
 }
 
 pub type Response {
