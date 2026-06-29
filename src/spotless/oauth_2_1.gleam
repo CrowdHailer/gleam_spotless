@@ -81,10 +81,16 @@ pub fn add_parameter(request, key, value) {
 /// and with state, iss returned
 pub fn grant(redirect, server, app, code_verifier) {
   use response <- t.try(authorization_response_from_uri(redirect))
-  let authorization.Response(state:, iss:, ..) = response
 
-  use response <- t.do(get_token(response.code, server, app, code_verifier))
-  t.done(#(response, state, iss))
+  let authorization.Response(result:, state:, iss:) = response
+
+  case result {
+    Ok(code) -> {
+      use response <- t.do(get_token(code, server, app, code_verifier))
+      t.done(#(response, state, iss))
+    }
+    Error(reason) -> t.abort(snag.new(reason.error))
+  }
 }
 
 /// Get a token response from a code.
@@ -147,9 +153,11 @@ pub fn authorize(
 
   use redirect <- t.do(t.follow(url))
   use response <- t.try(authorization_response_from_uri(redirect))
+  use code <- t.try(
+    response.result |> result.map_error(fn(reason) { snag.new(reason.error) }),
+  )
 
-  let request =
-    token.AuthorizationCode(client_id:, code: response.code, code_verifier:)
+  let request = token.AuthorizationCode(client_id:, code: code, code_verifier:)
 
   let request = token.authorization_code_to_http(token_endpoint, request)
   use request <- t.do(case keypair, nonce {
@@ -171,10 +179,7 @@ pub fn authorize(
 
 pub fn authorization_response_from_uri(redirect) {
   authorization.response_from_uri(redirect)
-  |> result.map_error(fn(error) {
-    let #(_reason, description) = error
-    snag.new(description)
-  })
+  |> result.map_error(fn(description) { snag.new(description) })
 }
 
 pub fn token_response_from_http(response) {

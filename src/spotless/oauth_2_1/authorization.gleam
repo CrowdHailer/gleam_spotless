@@ -125,18 +125,45 @@ pub fn split_scope(scope: String) -> List(String) {
   }
 }
 
+// this function only works for request.
 fn key_pop(params, key) {
   list.key_pop(params, key)
   |> result.replace_error(#(InvalidRequest, "missing key " <> key))
 }
 
 pub type Response {
-  Response(code: String, state: Option(String), iss: Option(String))
+  Response(
+    result: Result(String, ErrorResponse),
+    state: Option(String),
+    iss: Option(String),
+  )
+}
+
+pub type ErrorResponse {
+  ErrorResponse(
+    error: String,
+    error_description: Option(String),
+    error_uri: Option(String),
+  )
 }
 
 pub fn response_to_params(response) {
-  let Response(code:, state:, iss:) = response
-  let params = [#("code", code)]
+  let Response(result:, state:, iss:) = response
+  let params = case result {
+    Ok(code) -> [#("code", code)]
+    Error(ErrorResponse(error:, error_description:, error_uri:)) -> {
+      let params = [#("error", error)]
+      let params = case error_description {
+        Some(error_description) ->
+          list.append(params, [#("error_description", error_description)])
+        None -> params
+      }
+      case error_uri {
+        Some(error_uri) -> list.append(params, [#("error_uri", error_uri)])
+        None -> params
+      }
+    }
+  }
   let params = case state {
     Some(state) -> list.append(params, [#("state", state)])
     None -> params
@@ -173,61 +200,42 @@ pub fn response_to_url(endpoint, response) {
 }
 
 // The client MUST ignore unrecognized response parameters
-pub fn response_from_params(params) {
-  case key_pop(params, "error") {
+pub fn response_from_params(
+  params: List(#(String, String)),
+) -> Result(Response, String) {
+  case list.key_pop(params, "error") {
     Ok(#(error, params)) -> {
-      let description =
+      let error_description =
         list.key_find(params, "error_description")
-        |> result.unwrap(error)
-      // list.key_pop(params, "error_uri") |> option.from_result
-      Error(#(AccessDenied, description))
-    }
-    Error(_) -> {
-      use #(code, params) <- try(key_pop(params, "code"))
-      use #(state, _params) <- try(key_pop(params, "state"))
-      // use Nil <- try(case params {
-      //   [] -> Ok(Nil)
-      //   _ -> Error(#(InvalidRequest, "extra params"))
-      // })
-      Ok(Response(code, Some(state), None))
-    }
-  }
-}
+        |> option.from_result
+      let error_uri =
+        list.key_find(params, "error_uri")
+        |> option.from_result
+      let state =
+        list.key_find(params, "state")
+        |> option.from_result
+      let iss =
+        list.key_find(params, "iss")
+        |> option.from_result
 
-/// Nested result, outer for following the protocol inner for defined error responses
-pub fn response_from_query(query) {
-  case query {
-    None ->
-      Ok(Error(#(InvalidRequest, Some("Required parameter code is missing"))))
-    Some(query) ->
-      case uri.parse_query(query) {
-        Ok(params) -> {
-          case list.key_find(params, "code"), list.key_find(params, "error") {
-            Ok(code), _ -> {
-              let code: String = code
-              let state = list.key_find(params, "state") |> option.from_result
-              let iss = list.key_find(params, "iss") |> option.from_result
-              Ok(Ok(Response(code, state, iss)))
-            }
-            _, Ok(error) -> {
-              let description =
-                list.key_find(params, "error_description") |> option.from_result
-              case error_code_from_string(error) {
-                Ok(error) -> Ok(Error(#(error, description)))
-                Error(Nil) -> Error(#(error, description))
-              }
-            }
-            Error(Nil), Error(Nil) ->
-              Ok(
-                Error(#(
-                  InvalidRequest,
-                  Some("Required parameter code is missing"),
-                )),
-              )
-          }
-        }
-        Error(Nil) -> Ok(Error(#(InvalidRequest, Some("invalid query params"))))
-      }
+      Ok(Response(
+        Error(ErrorResponse(error:, error_description:, error_uri:)),
+        state:,
+        iss:,
+      ))
+    }
+    Error(Nil) -> {
+      use #(code, params) <- try(
+        list.key_pop(params, "code") |> result.replace_error("missing code"),
+      )
+      use #(state, params) <- try(
+        list.key_pop(params, "state") |> result.replace_error("missing state"),
+      )
+      let iss =
+        list.key_find(params, "iss")
+        |> option.from_result
+      Ok(Response(Ok(code), Some(state), iss))
+    }
   }
 }
 
@@ -235,7 +243,7 @@ pub fn response_from_uri(uri) {
   let uri.Uri(query:, ..) = uri
   case uri.parse_query(query |> option.unwrap("")) {
     Ok(params) -> response_from_params(params)
-    Error(_) -> Error(#(InvalidRequest, "invalid query"))
+    Error(_) -> Error("invalid query")
   }
 }
 
@@ -243,12 +251,8 @@ pub fn response_from_uri(uri) {
 pub fn response_from_http(request) {
   case request.get_query(request) {
     Ok(params) -> response_from_params(params)
-    Error(_) -> Error(#(InvalidRequest, "invalid query"))
+    Error(_) -> Error("invalid query")
   }
-}
-
-pub type Fail {
-  Fail(code: Code, description: String, uri: String, state: String)
 }
 
 pub type Code {

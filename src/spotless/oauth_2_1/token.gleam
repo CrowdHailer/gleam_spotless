@@ -193,6 +193,26 @@ pub fn error_response_to_http(response) -> response.Response(BitArray) {
   |> response.set_body(<<json.to_string(data):utf8>>)
 }
 
+pub fn error_response_from_http(response) {
+  let response.Response(body:, ..) = response
+  json.parse_bits(body, token_error_response_decoder())
+}
+
+pub fn token_error_response_decoder() {
+  use error <- decode.field("error", decode.string)
+  use error_description <- decode.optional_field(
+    "error_description",
+    None,
+    decode.optional(decode.string),
+  )
+  use error_uri <- decode.optional_field(
+    "error_uri",
+    None,
+    decode.optional(decode.string),
+  )
+  decode.success(ErrorResponse(error:, error_description:, error_uri:))
+}
+
 pub type Fail {
   InvalidRequest
   InvalidClient
