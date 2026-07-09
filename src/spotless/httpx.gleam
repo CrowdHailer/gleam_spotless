@@ -1,5 +1,7 @@
+import gleam/bit_array
 import gleam/http
 import gleam/http/request
+import gleam/json
 import gleam/list
 import gleam/string
 import gleam/uri
@@ -35,12 +37,29 @@ fn escape_quoted(string) {
   "\"" <> content <> "\""
 }
 
-pub fn post_form_params(endpoint, params) {
+pub fn with_basic_auth(request, username, password) {
+  let str = <<username:utf8, ":", password:utf8>>
+  let authorization = "Basic " <> bit_array.base64_encode(str, False)
+  request
+  |> request.set_header("authorization", authorization)
+}
+
+pub fn post(endpoint, content_type, body) {
   let #(origin, path) = endpoint
 
   origin.to_request(origin)
   |> request.set_method(http.Post)
   |> request.set_path(path)
-  |> request.prepend_header("content-type", "application/x-www-form-urlencoded")
-  |> request.set_body(<<uri.query_to_string(params):utf8>>)
+  |> request.prepend_header("content-type", content_type)
+  |> request.set_body(body)
+}
+
+pub fn post_form_params(endpoint, params) {
+  let body = <<uri.query_to_string(params):utf8>>
+  post(endpoint, "application/x-www-form-urlencoded", body)
+}
+
+pub fn post_json(endpoint, json) {
+  let body = <<json.to_string(json):utf8>>
+  post(endpoint, "application/json", body)
 }
