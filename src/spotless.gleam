@@ -3,7 +3,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/uri
-import midas/task as t
+import midas/continuation
 import ogre/origin.{Origin}
 import spotless/oauth_2_1 as oa
 import spotless/proof_key_for_code_exchange as pkce
@@ -14,7 +14,14 @@ import spotless/proof_key_for_code_exchange as pkce
 /// For example a server that would keep code_verifier in a session cannot keep a gleam continuation in a session.
 ///
 /// Instead use the `_server` function and use `oauth_2_1.start`
-pub fn authenticate(service, scope, state, port, code_challenge_method) {
+pub fn authenticate(
+  service,
+  scope,
+  state,
+  port,
+  code_challenge_method,
+  context,
+) {
   let client_id = "http://localhost:" <> int.to_string(port)
   let redirect_uri =
     uri.Uri(
@@ -37,6 +44,7 @@ pub fn authenticate(service, scope, state, port, code_challenge_method) {
     scope,
     state,
     code_challenge_method,
+    context,
   )
 }
 
@@ -55,7 +63,7 @@ pub fn spotless_server(service) {
   )
 }
 
-pub fn bsky(port, scope, state, keypair) {
+pub fn bsky(port, scope, state, keypair, context) {
   // If state is empty string that value is not returned from oauth server
   let origin = Origin(http.Https, "bsky.social", None)
   // No port on client id
@@ -94,6 +102,7 @@ pub fn bsky(port, scope, state, keypair) {
     scope,
     state,
     pkce.S256,
+    context,
   )
 }
 
@@ -110,47 +119,110 @@ pub fn server(service) {
 }
 
 // Currently DNSimple don't use scopes
-pub fn dnsimple(port) {
-  use response <- t.do(authenticate("dnsimple", [], "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn dnsimple(port, context) {
+  use response <- continuation.try_then(authenticate(
+    "dnsimple",
+    [],
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn dropbox(port, scopes) {
-  use response <- t.do(authenticate("dropbox", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn dropbox(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "dropbox",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn github(port, scopes) {
-  use response <- t.do(authenticate("github", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn github(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "github",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn google(port, scopes) {
-  use response <- t.do(authenticate("google", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn google(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "google",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn linkedin(port, scopes) {
-  use response <- t.do(authenticate("linkedin", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn linkedin(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "linkedin",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn netlify(port, scopes) {
-  use response <- t.do(authenticate("netlify", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn netlify(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "netlify",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn strava(port, scopes) {
-  use response <- t.do(authenticate("strava", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn strava(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "strava",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn twitter(port, scopes) {
-  use response <- t.do(authenticate("twitter", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn twitter(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "twitter",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }
 
-pub fn vimeo(port, scopes) {
-  use response <- t.do(authenticate("vimeo", scopes, "", port, pkce.S256))
-  t.done(response.access_token)
+pub fn vimeo(port, scopes, context) {
+  use response <- continuation.try_then(authenticate(
+    "vimeo",
+    scopes,
+    "",
+    port,
+    pkce.S256,
+    context,
+  ))
+  continuation.done(response.access_token)
 }

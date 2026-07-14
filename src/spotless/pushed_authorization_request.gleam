@@ -10,22 +10,27 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import gleam/uri.{Uri}
-import midas/task as t
+import midas/continuation.{type Continuation as K}
+import midas/effect
 import ogre/origin.{Origin}
-import snag
 import spotless/httpx
 import spotless/oauth_2_1/authorization
 
-pub fn do_request(endpoint, request) {
+pub fn do_request(
+  endpoint: #(origin.Origin, String),
+  request: authorization.Request,
+  fetch: effect.Fetch(t),
+) -> K(t, Result(#(Response, List(#(String, String))), String)) {
   let request = request_to_http(endpoint, request)
-  use response <- t.do(t.fetch(request))
-
+  use response <- continuation.then(fetch(request))
+  let response = result.map_error(response, effect.describe_fetch_error)
+  use response <- continuation.try(response)
   let headers = response.headers
   let response = response_from_http(response)
-  use response <- t.try(
-    result.map_error(response, fn(reason) { snag.new(string.inspect(reason)) }),
-  )
-  t.done(#(response, headers))
+  let response =
+    result.map_error(response, fn(reason) { string.inspect(reason) })
+  use response <- continuation.try(response)
+  continuation.done(#(response, headers))
 }
 
 pub fn request_to_http(endpoint, request) {
